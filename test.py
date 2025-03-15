@@ -74,29 +74,62 @@ def SelectAsDicts():
     values=[1]
     db.query(cons, values)
 
+
+def SelectAsText():
+    cons="""
+        SELECT ST_AsText(
+            ST_SnapToGrid(
+                ST_GeomFromText('POLYGON((0.00001 0.00001, 100.00001 0.00001, 100.00001 100.00001, 0.00001 100.00001, 0.00001 0.00001))', 25830),
+		        0.001)
+	    );
+    """
+    db.query(cons)
+
+def IsValid():
+    cons="""
+        SELECT ST_IsValid(
+            ST_SnapToGrid(
+                ST_GeomFromText('POLYGON((0.00001 0.00001, 100.00001 0.00001, 100.00001 100.00001, 0.00001 100.00001, 0.00001 0.00001))', 25830),
+		        0.001)
+	    );
+    """
+    db.query(cons)
+
+def SeSeka():
+    cons=f"""
+        SELECT gid FROM d.buildings WHERE 
+            ST_Intersects(
+                geom,            
+                ST_SnapToGrid(
+                    ST_GeomFromText('POLYGON((0.00001 0.00001, 100.00001 0.00001, 100.00001 100.00001, 0.00001 100.00001, 0.00001 0.00001))', 25830),
+		        {settings.ST_SNAPTOGRID_DISTANCE} )
+	        );
+    """
+    db.query(cons)
+
+
 def checkIntersectionBeforeInsert():
-    polygon= "POLYGON((0.00001 0.00001, 100.00001 0.00001, 100.00001 100.00001, 0.00001 100.00001, 0.00001 0.00001))"
+    polygon= "POLYGON((200.00001 0.00001, 300.00001 0.00001, 300.00001 100.00001, 200.00001 100.00001, 200.00001 0.00001))"
     
-    query="""
-        select gid from d.buildings where
+    query=f"""
+        SELECT gid FROM d.buildings WHERE
         st_intersects
         (
             geom,
-            st_snaptogrid(
-                st_geometryfromtext(
-                    %s,
+            ST_SnapToGrid(
+                ST_GeomFromText( %s,
                     25830
                     ),
-                0,001
+                {settings.ST_SNAPTOGRID_DISTANCE} 
             )
         )
         """
     db.query(query, [polygon])
-    if len(db.results)>0:
+    if len(db.result)>0:
         print('The new polygon intersects with the others in the table: {db.result}')
         return
 
-    query="""select st_isvalid(st_snapgrid(%s,%s))"""
+    query="""SELECT ST_Isvalid(ST_SnapToGrid(%s,%s))"""
     db.query(query, [polygon, settings.ST_SNAPTOGRID_DISTANCE])
     if not db.result[0][0]: #true o false
         print('The new polygon is not valid after st_snapToGrid')
@@ -105,15 +138,15 @@ def checkIntersectionBeforeInsert():
     query="""
         INSERT INTO d.buildings (descripcion, area, geom)
         values (%s,
-        st_area(
-            st_snaptogrid(
-                st_geometryfromtext(%s,25830),
+        ST_Area(
+            ST_SnapToGrid(
+                ST_GeomFromText(%s,25830),
                 %s
             )    
         )
         ,
-            st_snaptogrid(
-                st_geometryfromtext(%s,25830),
+            ST_SnapToGrid(
+                ST_GeomFromText(%s,25830),
                 %s
             )    
         ) returning gid
@@ -146,15 +179,20 @@ if __name__ == '__main__':
     # db.query(query, values)
 
     # izpis as Tuples [ , , ]
-    print('SELECTING records:')    # SELECTING ROWS as  Tuples [ , , ]
-    print('as Tuples:')
-    SelectAsTuples()    # izpiše stavbo 1
-    query="select gid, descripcion, st_astext(geom) from d.buildings where gid= %s "
-    values=[9]                # izpisali si bomo zapis, ki ima gid=9
-    db.query(query, values)
+    #print('SELECTING records:')    # SELECTING ROWS as  Tuples [ , , ]
+    #print('as Tuples:')
+    #SelectAsTuples()    # izpiše stavbo 1
+    #query="select gid, descripcion, st_astext(geom) from d.buildings where gid= %s "
+    #values=[9]                # izpisali si bomo zapis, ki ima gid=9
+    #db.query(query, values)
     # izpis as Dictionary {gid: .., descripcion: .., geom: ..}
-    print('as Dictionary:')
-    SelectAsDicts()    # pogledali si bomo zapis z gid=1
-    query="select array_to_json(array_agg(filas)) FROM (select gid, descripcion, st_astext(geom) from d.buildings where gid=%s) as filas"  # as filas = as vrstice
-    values=[16]         # pogledali si bomo zapis 16 še enkrat
-    db.query(query, values)
+    #print('as Dictionary:')
+    #SelectAsDicts()    # pogledali si bomo zapis z gid=1
+    #query="select array_to_json(array_agg(filas)) FROM (select gid, descripcion, st_astext(geom) from d.buildings where gid=%s) as filas"  # as filas = as vrstice
+    #values=[16]         # pogledali si bomo zapis 16 še enkrat
+    #db.query(query, values)
+
+    #SelectAsText()
+    #IsValid()
+    #SeSeka()
+    checkIntersectionBeforeInsert()
